@@ -6,7 +6,8 @@ def test_no_exec_tag():
         "allowed_backends": [],
         "tool_list": []
     }
-    assert validation(input_data) is False
+    is_safety_tags,_ = validation(input_data)
+    assert is_safety_tags is False
 
 def test_safe_tag():
     input_data = {
@@ -14,7 +15,8 @@ def test_safe_tag():
         "allowed_backends": [],
         "tool_list": []
     }
-    assert validation(input_data) is True
+    is_safety_tags,_ = validation(input_data)
+    assert is_safety_tags is True
 
 def test_internal_only_with_external_backend():
     input_data = {
@@ -22,4 +24,5 @@ def test_internal_only_with_external_backend():
         "allowed_backends": ["gemma3:7b"],  # backend externe
         "tool_list": []
     }
-    assert validation(input_data) is False
+    is_safety_tags,_ = validation(input_data)
+    assert is_safety_tags is False
