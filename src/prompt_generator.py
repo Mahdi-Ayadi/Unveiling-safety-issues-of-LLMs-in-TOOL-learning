@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Iterable, List, Mapping
 
-from .parser import ParsedTest, ToolSwordParser
+from parser import ParsedTest, ToolSwordParser
 from textwrap import indent
 
 # from langchain_core.language_models import BaseLanguageModel

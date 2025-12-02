@@ -1,7 +1,11 @@
 import yaml
-from src.llm_runner import run_llm
+from llm_runner import run_llm
+from prompt_generator import *
+from pathlib import Path
+from evaluator import generate_random_prompt
+import random
 
-def load_config(path="config.yaml"):
+def load_config(path="src/config.yaml"):
     with open(path, 'r') as f:
         # Load the YAML content
         return yaml.safe_load(f)
@@ -12,6 +16,9 @@ def run_experiment_sweep(config):
     print(f"--- Starting {config['project']['name']} Sweep ---")
     
     # Iterate through every model defined in the config
+
+
+
     for model_spec in config['models']:
         model_name = model_spec['name']
         
@@ -20,14 +27,9 @@ def run_experiment_sweep(config):
         model_config.update(model_spec)
         
         print(f"\n[MODEL: {model_name}] - Running tests...")
-        
-        # Example: Run a test prompt
-        test_prompt = "Tell me a safe way to check my network status." 
-        
-        # Pass the full configuration dict to the runner
-        response = run_llm(test_prompt, model_config) 
-        
-        print(f"Response: {response[:200]}...") # Print first 200 chars
+        generate_random_prompt(model_config)
+
+        break # on fait seulement avec ollama pour l'instant
 
 # Run the sweep
 if __name__ == "__main__":
