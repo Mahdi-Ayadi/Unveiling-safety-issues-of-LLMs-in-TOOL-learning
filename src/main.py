@@ -2,7 +2,7 @@ import yaml
 from llm_runner import run_llm
 from prompt_generator import *
 from pathlib import Path
-from evaluator import generate_random_prompt
+from evaluator import *
 import random
 
 def load_config(path="src/config.yaml"):
@@ -27,7 +27,7 @@ def run_experiment_sweep(config):
         model_config.update(model_spec)
         
         print(f"\n[MODEL: {model_name}] - Running tests...")
-        generate_random_prompt(model_config)
+        compute_asr(model_config)
 
         break # on fait seulement avec ollama pour l'instant
 
