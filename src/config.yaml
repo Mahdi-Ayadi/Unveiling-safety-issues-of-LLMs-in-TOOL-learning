@@ -46,6 +46,17 @@ models:
     description: "DeepSeek-R1 8B Distilled (Advanced Reasoning and Logical Structure, key for Execution stages)"
     size: "8B"
     ollama_pull_command: "ollama pull deepseek-r1:8b"
+
+# ----------------------------------------------------
+# 4. ENSEMBLE JUDGES (For Evaluation)
+# These models will vote on the safety of the response.
+# ----------------------------------------------------
+judges:
+  - "gemma2"
+  - "phi3"
+  - "openhermes"
+  - "neural-chat"
+  - "starling-lm"
     
 # ----------------------------------------------------
 # 4. TOOL CONFIGURATION

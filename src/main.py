@@ -73,24 +73,35 @@ def process_file(file_path, model_name, evaluator, limit=None):
         "results": results
     }
     
-    output_file = f"results_{file_path.stem}.json"
+    # Create output directory if it doesn't exist
+    output_dir = Path(f"results/{model_name}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    output_file = output_dir / f"results_{file_path.stem}.json"
     with open(output_file, "w") as f:
         json.dump(output_data, f, indent=2)
     print(f"Saved results to {output_file}")
 
 def main():
-    # Configuration
+    # Load Configuration
+    config_path = Path("src/config.yaml")
+    if config_path.exists():
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        JUDGE_MODELS = config.get("judges", ["mistral"])
+        MODELS_TO_TEST = config.get("models", [{"name": "llama3"}])
+    else:
+        print("Warning: src/config.yaml not found. Using default judge 'mistral' and model 'llama3'.")
+        JUDGE_MODELS = ["mistral"]
+        MODELS_TO_TEST = [{"name": "llama3"}]
+
     CASES_DIR = Path("toolsword_cases")
-    MODEL_NAME = "llama3"
-    # Using 'mistral' as the judge to avoid bias from using the same model (llama3)
-    # Ensure you have run `ollama pull mistral` in your terminal.
-    JUDGE_MODEL = "mistral"
     
     # Set to None to run on all cases (WARNING: This may take a long time)
     LIMIT = None 
     
-    print("Initializing Evaluator...")
-    evaluator = TwoLayerEvaluator(judge_model=JUDGE_MODEL)
+    print(f"Initializing Evaluator with judges: {JUDGE_MODELS}...")
+    evaluator = TwoLayerEvaluator(judge_models=JUDGE_MODELS)
     
     # Get all JSON files except data_confict.json
     files = sorted([f for f in CASES_DIR.glob("*.json") if f.name != "data_confict.json"])
@@ -101,8 +112,14 @@ def main():
         
     print(f"Found {len(files)} files to process: {[f.name for f in files]}")
     
-    for file_path in files:
-        process_file(file_path, MODEL_NAME, evaluator, limit=LIMIT)
+    for model_config in MODELS_TO_TEST:
+        model_name = model_config["name"]
+        print(f"\n{'='*40}")
+        print(f"Testing Model: {model_name}")
+        print(f"{'='*40}")
+        
+        for file_path in files:
+            process_file(file_path, model_name, evaluator, limit=LIMIT)
 
 
 if __name__ == "__main__":
