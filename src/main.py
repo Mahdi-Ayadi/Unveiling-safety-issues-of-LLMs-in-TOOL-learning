@@ -19,40 +19,7 @@ def load_cases(file_path):
     
     return list(parser.iter_file_cases(file_path))
 
-def process_file(file_path, model_name, evaluator, limit=None):
-    print(f"\nProcessing {file_path.name}...")
-    try:
-        cases = load_cases(file_path)
-    except Exception as e:
-        print(f"Error loading {file_path}: {e}")
-        return
-
-    if limit:
-        print(f"Limiting to first {limit} cases.")
-        cases = cases[:limit]
-    
-    results = []
-    unsafe_count = 0
-    
-    for i, case in enumerate(tqdm(cases, desc=f"Evaluating {file_path.name}")):
-        prompt = build_prompt_from_case(case)
-        response = run_llm(prompt, model_name=model_name)
-        
-        # Evaluate response
-        eval_result = evaluator.evaluate_response(case, response, expected_tool=None)
-        
-        is_safe = eval_result["is_safe"]
-        if not is_safe:
-            unsafe_count += 1
-            
-        results.append({
-            "case_id": i,
-            "query": case.query,
-            "response": response,
-            "eval_result": eval_result
-        })
-
-    total = len(cases)
+def create_summary(total,unsafe_count,file_path,results,model_name):
     asr = unsafe_count / total if total > 0 else 0
     ci_low, ci_high = proportion_ci_wilson(unsafe_count, total)
     
@@ -82,36 +49,65 @@ def process_file(file_path, model_name, evaluator, limit=None):
         json.dump(output_data, f, indent=2)
     print(f"Saved results to {output_file}")
 
-def main():
-    # Load Configuration
-    config_path = Path("src/config.yaml")
+def process_file(file_path, model_name, evaluator, limit=None):
+
+    print(f"\nProcessing {file_path.name}...")
+    
+    try:
+        cases = load_cases(file_path)
+    except Exception as e:
+        print(f"Error loading {file_path}: {e}")
+        return
+
+    if limit:
+        print(f"Limiting to first {limit} cases.")
+        cases = cases[:limit]
+    
+    results = []
+    unsafe_count = 0
+    
+    for i, case in enumerate(tqdm(cases, desc=f"Evaluating {file_path.name}")):
+
+        prompt = build_prompt_from_case(case)
+        response = run_llm(prompt, model_name=model_name)
+        eval_result = evaluator.evaluate_response(case, response, expected_tool=None)
+        
+        is_safe = eval_result["is_safe"]
+        if not is_safe:
+            unsafe_count += 1
+            
+        results.append({
+            "case_id": i,
+            "query": case.query,
+            "response": response,
+            "eval_result": eval_result
+        })
+
+
+    create_summary(len(cases),unsafe_count,file_path,results,model_name)
+
+def load_configuration(path="src/config.yaml"):
+
+    config_path = Path(path)
+
     if config_path.exists():
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
+        config = yaml.safe_load(open(config_path, "r"))
         JUDGE_MODELS = config.get("judges", ["mistral"])
+        # JUDGE_MODELS = ["llama3"]
         MODELS_TO_TEST = config.get("models", [{"name": "llama3"}])
+
     else:
         print("Warning: src/config.yaml not found. Using default judge 'mistral' and model 'llama3'.")
         JUDGE_MODELS = ["mistral"]
         MODELS_TO_TEST = [{"name": "llama3"}]
-
+    
     CASES_DIR = Path("toolsword_cases")
-    
-    # Set to None to run on all cases (WARNING: This may take a long time)
-    LIMIT = None 
-    
-    print(f"Initializing Evaluator with judges: {JUDGE_MODELS}...")
-    evaluator = TwoLayerEvaluator(judge_models=JUDGE_MODELS)
-    
-    # Get all JSON files except data_confict.json
-    files = sorted([f for f in CASES_DIR.glob("*.json") if f.name != "data_confict.json"])
-    
-    if not files:
-        print(f"No JSON files found in {CASES_DIR}")
-        return
-        
-    print(f"Found {len(files)} files to process: {[f.name for f in files]}")
-    
+    LIMIT = 1 # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
+
+    return JUDGE_MODELS,MODELS_TO_TEST,CASES_DIR,LIMIT
+
+def attack_launcher(MODELS_TO_TEST,files,evaluator : TwoLayerEvaluator,LIMIT):
+
     for model_config in MODELS_TO_TEST:
         model_name = model_config["name"]
         print(f"\n{'='*40}")
@@ -121,6 +117,22 @@ def main():
         for file_path in files:
             process_file(file_path, model_name, evaluator, limit=LIMIT)
 
+def main():
+
+    # Load Configuration
+    JUDGE_MODELS,MODELS_TO_TEST,CASES_DIR,LIMIT = load_configuration()
+    print(f"Initializing Evaluator with judges: {JUDGE_MODELS}")
+
+    evaluator = TwoLayerEvaluator(judge_models=JUDGE_MODELS)
+
+    # Get all JSON files except data_confict.json
+    files = sorted([f for f in CASES_DIR.glob("*.json") if f.name != "data_confict.json"])
+    if not files: return Exception(f"No JSON files found in {CASES_DIR}")
+        
+    print(f"Found {len(files)} files to process: {[f.name for f in files]}")
+    
+    # Lancement du test
+    attack_launcher(MODELS_TO_TEST,files,evaluator,LIMIT)
 
 if __name__ == "__main__":
     main()
