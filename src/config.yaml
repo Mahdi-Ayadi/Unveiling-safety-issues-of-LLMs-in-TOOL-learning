@@ -1,0 +1,69 @@
+# ----------------------------------------------------
+# 1. PROJECT & EVALUATION SETTINGS
+# ----------------------------------------------------
+project:
+  name: "Toolsword_Reproduction_Max8_3B"
+  version: "v1.1-opensource-highperf"
+  output_dir: "results/"
+  eval_stages:
+    - "Input_MaliciousQueries"
+    - "Input_JailbreakAttacks"
+    - "Execution_NoisyMisdirection"
+    - "Execution_RiskyCues"
+    - "Output_HarmfulFeedback"
+
+# ----------------------------------------------------
+# 2. LLM BACKEND CONFIGURATION (OLLAMA)
+# ----------------------------------------------------
+ollama_config:
+  base_url: "http://localhost:11434"
+  temperature: 0.0
+  max_new_tokens: 1024
+  streaming_callbacks: true 
+
+# ----------------------------------------------------
+# 3. MODELS TO TEST (Maximum ~8.3 Billion Parameters)
+# Note: These are high-performance models for tool-use/reasoning.
+# You MUST run 'ollama pull <ollama_pull_command>' for each.
+# ----------------------------------------------------
+models:
+  - name: "llama3"
+    description: "Meta Llama 3 8B Instruct (Standard Tooling Baseline)"
+    size: "8B"
+    ollama_pull_command: "ollama pull llama3"
+    
+  - name: "mistral"
+    description: "Mistral 7B Instruct (Strong Performance & Efficiency Baseline)"
+    size: "7B"
+    ollama_pull_command: "ollama pull mistral"
+    
+  - name: "qwen3:8b"
+    description: "Qwen3 8B Instruct (Latest Generation, Excellent Tool-Use/Agentic Capability)"
+    size: "8.3B"
+    ollama_pull_command: "ollama pull qwen3:8b" # May use a slightly different tag like qwen3:8b
+    
+  - name: "deepseek-r1:8b"
+    description: "DeepSeek-R1 8B Distilled (Advanced Reasoning and Logical Structure, key for Execution stages)"
+    size: "8B"
+    ollama_pull_command: "ollama pull deepseek-r1:8b"
+
+# ----------------------------------------------------
+# 4. ENSEMBLE JUDGES (For Evaluation)
+# These models will vote on the safety of the response.
+# ----------------------------------------------------
+judges:
+  - "gemma2"
+  - "phi3"
+  - "openhermes"
+  - "neural-chat"
+  - "starling-lm"
+    
+# ----------------------------------------------------
+# 4. TOOL CONFIGURATION
+# ----------------------------------------------------
+tool_config:
+  tool_definition_path: "src/tools/"
+  default_tools:
+    - "CalculatorTool"
+    - "SearchEngineTool"
+  risky_tool_name: "SystemCommandTool"

@@ -1,86 +1,52 @@
-# llm/runner/llm_runner.py
-from typing import Dict, Any, Callable
+"""
+LLM Runner Module
 
-# OpenAI"
-"""import openai"""
+This module handles the initialization and execution of a local LLM using LangChain.
+It is designed to work with open-source models (e.g., via Ollama or HuggingFace).
 
-# HuggingFace
-from transformers import pipeline
+Usage:
+    from src.llm_runner import run_llm
+    response = run_llm("Your prompt here")
+"""
 
+from langchain_ollama import OllamaLLM 
+from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 
-class LLMRunner:
-    def __init__(self):
-        self.llms: Dict[str, Dict[str, Any]] = {}
+# Configuration for the local LLM
+# Ensure you have Ollama installed and the model pulled (e.g., `ollama pull llama3`)
+MODEL_NAME = "llama3"  # Default model
+BASE_URL = "http://localhost:11434"
 
-    def register_llm(self, name: str, llm_callable: Callable, **params):
-        """
-        Enregistre un LLM avec ses paramètres
-        :param name: nom unique du LLM
-        :param llm_callable: fonction callable qui prend un prompt et des params et renvoie un texte
-        :param params: paramètres spécifiques du LLM
-        """
-        self.llms[name] = {"llm": llm_callable, "params": params}
-
-    def run(self, name: str, prompt: str) -> str:
-        """
-        Exécute le LLM sur un prompt
-        """
-        if name not in self.llms:
-            raise ValueError(f"LLM '{name}' n'est pas enregistré.")
-
-        llm_info = self.llms[name]
-        llm_callable = llm_info["llm"]
-        params = llm_info["params"]
-
-        return llm_callable(prompt, **params)
-
-    def run_all(self, prompt: str) -> Dict[str, str]:
-        """
-        Exécute tous les LLMs sur le même prompt
-        """
-        return {name: self.run(name, prompt) for name in self.llms}
-
-
-# -------------------
-# Exemples de LLM callables
-# -------------------
-
-"""def openai_llm(prompt: str, model: str = "gpt-3.5-turbo", temperature: float = 0.7, max_tokens: int = 150):
-    
-    Appel d'un modèle OpenAI Chat
-    
-    response = openai.ChatCompletion.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
+def get_llm(model_name: str = MODEL_NAME, base_url: str = BASE_URL, temperature: float = 0.0):
+    """
+    Initialize and return the LLM instance.
+    Allows overriding model configuration at runtime.
+    """
+    llm = OllamaLLM(
+        model=model_name,
+        base_url=base_url,
+        callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
         temperature=temperature,
-        max_tokens=max_tokens
     )
-    return response['choices'][0]['message']['content']"""
+    return llm
 
-
-def hf_llm(prompt: str, model_name: str = "gpt2", max_length: int = 50):
+def run_llm(prompt: str, model_name: str = MODEL_NAME, base_url: str = BASE_URL, temperature: float = 0.0) -> str:
     """
-    Appel d'un modèle HuggingFace (text-generation)
+    Send a prompt to the LLM and return the response string.
+    Allows specifying model configuration per call.
     """
-    gen = pipeline("text-generation", model=model_name)
-    result = gen(prompt, max_length=max_length, do_sample=True)
-    return result[0]['generated_text']
+    llm = get_llm(model_name=model_name, base_url=base_url, temperature=temperature)
+    try:
+        response = llm.invoke(prompt)
+        return response
+    except Exception as e:
+        return f"Error running LLM: {e}"
 
-
-runner = LLMRunner()
-
-# Enregistrement des LLMs
-"""runner.register_llm("OpenAI-GPT3.5", openai_llm, model="gpt-3.5-turbo", temperature=0.7, max_tokens=100)"""
-runner.register_llm("HuggingFace-GPT2", hf_llm, model_name="gpt2", max_length=100)
-
-# Prompt à tester
-prompt = "explain special relativity in simple terms"
-
-# Test d'un LLM
-"""print("OpenAI:", runner.run("OpenAI-GPT3.5", prompt))"""""
-print("HuggingFace:", runner.run("HuggingFace-GPT2", prompt))
-
-"""# Test de tous les LLMs en même temps
-all_results = runner.run_all(prompt)
-print(all_results)"""
-
+if __name__ == "__main__":
+    # Simple test to verify the runner works
+    print(f"Testing LLM Runner with model: {MODEL_NAME}...")
+    test_prompt = "Hello, are you ready for a security test?"
+    print(f"Prompt: {test_prompt}")
+    # Example of passing custom config
+    result = run_llm(test_prompt, model_name="llama3", temperature=0.7)
+    print(f"\nResponse:\n{result}")
