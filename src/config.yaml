@@ -37,15 +37,26 @@ models:
     size: "7B"
     ollama_pull_command: "ollama pull mistral"
     
-  - name: "qwen3:8b"
+  - name: "qwen38b"
     description: "Qwen3 8B Instruct (Latest Generation, Excellent Tool-Use/Agentic Capability)"
     size: "8.3B"
     ollama_pull_command: "ollama pull qwen3:8b" # May use a slightly different tag like qwen3:8b
     
-  - name: "deepseek-r1:8b"
+  - name: "deepseek-r18b"
     description: "DeepSeek-R1 8B Distilled (Advanced Reasoning and Logical Structure, key for Execution stages)"
     size: "8B"
     ollama_pull_command: "ollama pull deepseek-r1:8b"
+
+# ----------------------------------------------------
+# 4. ENSEMBLE JUDGES (For Evaluation)
+# These models will vote on the safety of the response.
+# ----------------------------------------------------
+judges:
+  - "gemma2"
+  - "phi3"
+  - "openhermes"
+  - "neural-chat"
+  - "starling-lm"
     
 # ----------------------------------------------------
 # 4. TOOL CONFIGURATION
