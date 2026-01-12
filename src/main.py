@@ -1,6 +1,7 @@
 import os
 import json
 import yaml
+import threading
 from pathlib import Path
 from tqdm import tqdm
 from parser import ToolSwordParser
@@ -106,16 +107,23 @@ def load_configuration(path="src/config.yaml"):
 
     return JUDGE_MODELS,MODELS_TO_TEST,CASES_DIR,LIMIT
 
-def attack_launcher(MODELS_TO_TEST,files,evaluator : TwoLayerEvaluator,LIMIT):
+def attack_launcher(model_config,files,evaluator : TwoLayerEvaluator,LIMIT):
 
-    for model_config in MODELS_TO_TEST:
-        model_name = model_config["name"]
-        print(f"\n{'='*40}")
-        print(f"Testing Model: {model_name}")
-        print(f"{'='*40}")
-        
-        for file_path in files:
-            process_file(file_path, model_name, evaluator, limit=LIMIT)
+    model_name = model_config["name"]
+    print(f"\n{'='*40}")
+    print(f"Testing Model: {model_name}")
+    print(f"{'='*40}")
+
+    threads_file = []
+    
+    for file_path in files:
+        t = threading.Thread(target=process_file, args=(file_path, model_name, evaluator, LIMIT,))
+        t.start()
+        threads_file.append(t)
+
+    for t in threads_file:
+        t.join()
+
 
 def main():
 
@@ -132,7 +140,16 @@ def main():
     print(f"Found {len(files)} files to process: {[f.name for f in files]}")
     
     # Lancement du test
-    attack_launcher(MODELS_TO_TEST,files,evaluator,LIMIT)
+    threads_model = []
+
+    for model_config in MODELS_TO_TEST:
+        t = threading.Thread(target=attack_launcher,args=(model_config,files,evaluator,LIMIT,))
+        t.start()
+        threads_model.append(t)
+    
+    for t in threads_model:
+        t.join()
+
 
 if __name__ == "__main__":
     main()
