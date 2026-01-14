@@ -117,7 +117,7 @@ def load_configuration(path="src/config.yaml"):
         MODELS_TO_TEST = [{"name": "llama3"}]
     
     CASES_DIR = Path("toolsword_cases")
-    LIMIT = 1 # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
+    LIMIT = None # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
 
     return JUDGE_MODELS,MODELS_TO_TEST,CASES_DIR,LIMIT
 
