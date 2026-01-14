@@ -3,7 +3,7 @@
 # ----------------------------------------------------
 project:
   name: "Toolsword_Reproduction_Max8_3B"
-  max_workers: 2
+  max_workers: 4
   version: "v1.1-opensource-highperf"
   output_dir: "results/"
   eval_stages:

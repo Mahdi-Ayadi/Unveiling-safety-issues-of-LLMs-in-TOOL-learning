@@ -137,7 +137,7 @@ def load_configuration(path="src/config.yaml"):
         MAX_WORKERS = 4
     
     CASES_DIR = Path("toolsword_cases")
-    LIMIT = 1 # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
+    LIMIT = 10 # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
 
     return JUDGE_MODELS, MODELS_TO_TEST, CASES_DIR, LIMIT, MAX_WORKERS
 

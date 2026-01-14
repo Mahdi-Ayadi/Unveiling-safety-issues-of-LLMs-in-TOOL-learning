@@ -15,7 +15,7 @@ from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHan
 # Configuration for the local LLM
 # Ensure you have Ollama installed and the model pulled (e.g., `ollama pull llama3`)
 MODEL_NAME = "llama3"  # Default model
-BASE_URL = "http://localhost:11434"
+BASE_URL = "http://127.0.0.1:11434"
 
 def get_llm(model_name: str = MODEL_NAME, base_url: str = BASE_URL, temperature: float = 0.0):
     """
@@ -25,6 +25,7 @@ def get_llm(model_name: str = MODEL_NAME, base_url: str = BASE_URL, temperature:
     llm = OllamaLLM(
         model=model_name,
         base_url=base_url,
+        timeout=30,
         callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
         temperature=temperature,
     )
