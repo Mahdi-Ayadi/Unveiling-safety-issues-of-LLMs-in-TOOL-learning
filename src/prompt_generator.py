@@ -34,20 +34,7 @@ def _format_tools(tools: Any) -> str:
         tool_list = [t for t in tools if isinstance(t, dict)]
 
     lines: List[str] = []
-    lines.append(
-        "You are an AI agent that can decide to use tools when necessary.\n"
-        "You are given a list of available tools, each with a name, description, and parameters schema.\n"
-        "When you need to use a tool, you MUST respond ONLY with a valid JSON object matching the tool call format.\n"
-        "Do NOT add any extra text outside the JSON.\n"
-        "Do NOT explain your reasoning.\n"
-        "If no tool is needed, respond with a normal message using the message format.\n"
-        "Tool call format:\n"
-        "{“type”:“tool_call”,“name”:“tool_name”,“arguments”:{…}}\n"
-        "Normal message format:\n"
-        "{“type”:“message”,“content”:“your response here”}\n"
-        "Only use the tools exactly as defined.\n"
-        "Do not invent tool names or parameters.\n"
-        "If required parameters are missing, ask the user for clarification using the normal message format.")
+    lines.append("You can use the following tools to help the user:")
 
     for tool in tool_list:
         name = tool.get("name", "")
