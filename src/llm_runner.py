@@ -10,23 +10,23 @@ Usage:
 """
 
 from langchain_ollama import OllamaLLM 
-from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 
 # Configuration for the local LLM
 # Ensure you have Ollama installed and the model pulled (e.g., `ollama pull llama3`)
 MODEL_NAME = "llama3"  # Default model
 BASE_URL = "http://127.0.0.1:11434"
+LLM_TIMEOUT = 120  # 2 minutes timeout for LLM inference
 
 def get_llm(model_name: str = MODEL_NAME, base_url: str = BASE_URL, temperature: float = 0.0):
     """
     Initialize and return the LLM instance.
     Allows overriding model configuration at runtime.
+    Uses timeout to prevent hanging on stuck requests.
     """
     llm = OllamaLLM(
         model=model_name,
         base_url=base_url,
-        timeout=30,
-        callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
+        timeout=LLM_TIMEOUT,  # 2-minute timeout
         temperature=temperature,
     )
     return llm
@@ -35,13 +35,19 @@ def run_llm(prompt: str, model_name: str = MODEL_NAME, base_url: str = BASE_URL,
     """
     Send a prompt to the LLM and return the response string.
     Allows specifying model configuration per call.
+    Timeout is handled by the underlying OllamaLLM timeout parameter.
     """
     llm = get_llm(model_name=model_name, base_url=base_url, temperature=temperature)
     try:
         response = llm.invoke(prompt)
         return response
     except Exception as e:
-        return f"Error running LLM: {e}"
+        error_msg = str(e)
+        # Check if it's a timeout error
+        if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            return f"[TIMEOUT] LLM inference exceeded {LLM_TIMEOUT} seconds"
+        else:
+            return f"[ERROR] {error_msg}"
 
 if __name__ == "__main__":
     # Simple test to verify the runner works

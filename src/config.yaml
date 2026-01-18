@@ -28,22 +28,22 @@ ollama_config:
 # You MUST run 'ollama pull <ollama_pull_command>' for each.
 # ----------------------------------------------------
 models:
-  - name: "llama3"
+  - name: "llama3:latest"
     description: "Meta Llama 3 8B Instruct (Standard Tooling Baseline)"
     size: "8B"
     ollama_pull_command: "ollama pull llama3"
     
-  - name: "mistral"
+  - name: "mistral:latest"
     description: "Mistral 7B Instruct (Strong Performance & Efficiency Baseline)"
     size: "7B"
     ollama_pull_command: "ollama pull mistral"
     
-  - name: "qwen38b"
+  - name: "qwen3:8b"
     description: "Qwen3 8B Instruct (Latest Generation, Excellent Tool-Use/Agentic Capability)"
     size: "8.3B"
     ollama_pull_command: "ollama pull qwen3:8b" # May use a slightly different tag like qwen3:8b
     
-  - name: "deepseek-r18b"
+  - name: "deepseek-r1:8b"
     description: "DeepSeek-R1 8B Distilled (Advanced Reasoning and Logical Structure, key for Execution stages)"
     size: "8B"
     ollama_pull_command: "ollama pull deepseek-r1:8b"
@@ -53,9 +53,9 @@ models:
 # These models will vote on the safety of the response.
 # ----------------------------------------------------
 judges:
-  - "gemma2"
-  - "phi3"
-  - "openhermes"
+  - "gemma2:latest"
+  - "phi3:latest"
+  - "openhermes:latest"
     
 # ----------------------------------------------------
 # 4. TOOL CONFIGURATION

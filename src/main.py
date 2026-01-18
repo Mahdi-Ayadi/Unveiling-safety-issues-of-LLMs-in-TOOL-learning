@@ -6,7 +6,8 @@ from pathlib import Path
 from tqdm import tqdm
 from parser import ToolSwordParser
 from llm_runner import run_llm
-from evaluator import TwoLayerEvaluator, build_prompt_from_case, proportion_ci_wilson
+from evaluator import TwoLayerEvaluator, proportion_ci_wilson
+from prompt_generator import build_attack_prompt
 
 def load_cases(file_path):
     # Ensure path is absolute or relative to CWD
@@ -51,25 +52,44 @@ def create_summary(total,unsafe_count,file_path,results,model_name):
     print(f"Saved results to {output_file}")
 
 def process_case(case_data):
-    """Process a single case (for parallel execution)"""
+    """Process a single case (for parallel execution) with timeout protection"""
     case_index, case, model_name, evaluator = case_data
     
-    prompt = build_prompt_from_case(case)
-    response = run_llm(prompt, model_name=model_name)
-    eval_result = evaluator.evaluate_response(case, response, case_index=case_index)
-    
-    is_safe = eval_result["is_safe"]
-    
-    return {
-        "case_id": case_index,
-        "query": case.query,
-        "response": response,
-        "eval_result": eval_result,
-        "is_safe": is_safe
-    }
+    try:
+        # Build prompt using the proper prompt generator
+        prompt = build_attack_prompt(case)
+        
+        # Run LLM with timeout protection
+        response = run_llm(prompt, model_name=model_name)
+        
+        # Check if response indicates a timeout/error
+        if "[TIMEOUT]" in response or "[ERROR]" in response:
+            print(f"\n⚠️  Case {case_index}: {response}")
+        
+        # Evaluate response
+        eval_result = evaluator.evaluate_response(case, response, case_index=case_index)
+        
+        is_safe = eval_result["is_safe"]
+        
+        return {
+            "case_id": case_index,
+            "query": case.query,
+            "response": response,
+            "eval_result": eval_result,
+            "is_safe": is_safe
+        }
+    except Exception as e:
+        print(f"\n❌ Case {case_index} failed: {str(e)}")
+        return {
+            "case_id": case_index,
+            "query": case.query,
+            "response": f"[PROCESS_ERROR] {str(e)}",
+            "eval_result": {"is_safe": True, "reason": "Case processing failed"},
+            "is_safe": True
+        }
 
 def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
-    """Process all cases in a file with parallel execution"""
+    """Process all cases in a file with parallel execution and timeout protection"""
     print(f"\nProcessing {file_path.name}...")
     
     try:
@@ -90,6 +110,8 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
     
     results = []
     unsafe_count = 0
+    timeout_count = 0
+    error_count = 0
     
     # Process cases in parallel using ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -102,13 +124,23 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
         # Process completed tasks with progress bar
         with tqdm(total=len(cases), desc=f"Evaluating {file_path.name}") as pbar:
             for future in as_completed(futures):
-                result = future.result()
-                results.append(result)
-                
-                if not result["is_safe"]:
-                    unsafe_count += 1
-                
-                pbar.update(1)
+                try:
+                    result = future.result(timeout=150)  # 2.5 min per case
+                    results.append(result)
+                    
+                    # Track response types
+                    if "[TIMEOUT]" in result.get("response", ""):
+                        timeout_count += 1
+                    elif "[ERROR]" in result.get("response", ""):
+                        error_count += 1
+                    elif not result["is_safe"]:
+                        unsafe_count += 1
+                    
+                    pbar.update(1)
+                except Exception as e:
+                    print(f"\n⚠️  Case future failed: {str(e)}")
+                    error_count += 1
+                    pbar.update(1)
     
     # Sort results by case_id to maintain order
     results.sort(key=lambda x: x["case_id"])
@@ -116,6 +148,15 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
     # Remove the is_safe key from results (already in eval_result)
     for r in results:
         del r["is_safe"]
+    
+    # Print detailed summary
+    print(f"\n📊 Summary for {file_path.name}:")
+    print(f"   Total: {len(cases)} cases")
+    print(f"   Unsafe: {unsafe_count} ({unsafe_count/len(cases)*100:.1f}%)")
+    if timeout_count > 0:
+        print(f"   ⏱️  Timeouts: {timeout_count}")
+    if error_count > 0:
+        print(f"   ❌ Errors: {error_count}")
     
     create_summary(len(cases), unsafe_count, file_path, results, model_name)
 
@@ -137,7 +178,7 @@ def load_configuration(path="src/config.yaml"):
         MAX_WORKERS = 4
     
     CASES_DIR = Path("toolsword_cases")
-    LIMIT = 10 # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
+    LIMIT = None # Integer or None; Set to None to run on all cases (WARNING: This may take a long time)
 
     return JUDGE_MODELS, MODELS_TO_TEST, CASES_DIR, LIMIT, MAX_WORKERS
 
