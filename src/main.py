@@ -52,44 +52,25 @@ def create_summary(total,unsafe_count,file_path,results,model_name):
     print(f"Saved results to {output_file}")
 
 def process_case(case_data):
-    """Process a single case (for parallel execution) with timeout protection"""
+    """Process a single case (for parallel execution)"""
     case_index, case, model_name, evaluator = case_data
     
-    try:
-        # Build prompt using the proper prompt generator
-        prompt = build_attack_prompt(case)
-        
-        # Run LLM with timeout protection
-        response = run_llm(prompt, model_name=model_name)
-        
-        # Check if response indicates a timeout/error
-        if "[TIMEOUT]" in response or "[ERROR]" in response:
-            print(f"\n⚠️  Case {case_index}: {response}")
-        
-        # Evaluate response
-        eval_result = evaluator.evaluate_response(case, response, case_index=case_index)
-        
-        is_safe = eval_result["is_safe"]
-        
-        return {
-            "case_id": case_index,
-            "query": case.query,
-            "response": response,
-            "eval_result": eval_result,
-            "is_safe": is_safe
-        }
-    except Exception as e:
-        print(f"\n❌ Case {case_index} failed: {str(e)}")
-        return {
-            "case_id": case_index,
-            "query": case.query,
-            "response": f"[PROCESS_ERROR] {str(e)}",
-            "eval_result": {"is_safe": True, "reason": "Case processing failed"},
-            "is_safe": True
-        }
+    prompt = build_attack_prompt(case)
+    response = run_llm(prompt, model_name=model_name)
+    eval_result = evaluator.evaluate_response(case, response, case_index=case_index)
+    
+    is_safe = eval_result["is_safe"]
+    
+    return {
+        "case_id": case_index,
+        "query": case.query,
+        "response": response,
+        "eval_result": eval_result,
+        "is_safe": is_safe
+    }
 
 def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
-    """Process all cases in a file with parallel execution and timeout protection"""
+    """Process all cases in a file with parallel execution"""
     print(f"\nProcessing {file_path.name}...")
     
     try:
@@ -110,8 +91,6 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
     
     results = []
     unsafe_count = 0
-    timeout_count = 0
-    error_count = 0
     
     # Process cases in parallel using ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -124,23 +103,13 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
         # Process completed tasks with progress bar
         with tqdm(total=len(cases), desc=f"Evaluating {file_path.name}") as pbar:
             for future in as_completed(futures):
-                try:
-                    result = future.result(timeout=150)  # 2.5 min per case
-                    results.append(result)
-                    
-                    # Track response types
-                    if "[TIMEOUT]" in result.get("response", ""):
-                        timeout_count += 1
-                    elif "[ERROR]" in result.get("response", ""):
-                        error_count += 1
-                    elif not result["is_safe"]:
-                        unsafe_count += 1
-                    
-                    pbar.update(1)
-                except Exception as e:
-                    print(f"\n⚠️  Case future failed: {str(e)}")
-                    error_count += 1
-                    pbar.update(1)
+                result = future.result()
+                results.append(result)
+                
+                if not result["is_safe"]:
+                    unsafe_count += 1
+                
+                pbar.update(1)
     
     # Sort results by case_id to maintain order
     results.sort(key=lambda x: x["case_id"])
@@ -148,15 +117,6 @@ def process_file(file_path, model_name, evaluator, limit=None, max_workers=4):
     # Remove the is_safe key from results (already in eval_result)
     for r in results:
         del r["is_safe"]
-    
-    # Print detailed summary
-    print(f"\n📊 Summary for {file_path.name}:")
-    print(f"   Total: {len(cases)} cases")
-    print(f"   Unsafe: {unsafe_count} ({unsafe_count/len(cases)*100:.1f}%)")
-    if timeout_count > 0:
-        print(f"   ⏱️  Timeouts: {timeout_count}")
-    if error_count > 0:
-        print(f"   ❌ Errors: {error_count}")
     
     create_summary(len(cases), unsafe_count, file_path, results, model_name)
 
@@ -189,12 +149,25 @@ def attack_launcher(model_config, files, evaluator: TwoLayerEvaluator, LIMIT, ma
     print(f"Testing Model: {model_name}")
     print(f"{'='*40}")
 
+    # Filter out files that already have results for this model
+    files_to_process = []
+    for file_path in files:
+        results_file = Path(f"results/{model_name}/results_{file_path.stem}.json")
+        if results_file.exists():
+            print(f"Skipping {file_path.name} (results already exist)")
+        else:
+            files_to_process.append(file_path)
+    
+    if not files_to_process:
+        print(f"All files already processed for model {model_name}")
+        return
+
     # Process files in parallel using ThreadPoolExecutor
     # Each file will internally parallelize its cases
-    with ThreadPoolExecutor(max_workers=min(len(files), 2)) as file_executor:
+    with ThreadPoolExecutor(max_workers=min(len(files_to_process), 6)) as file_executor:
         futures = {
             file_executor.submit(process_file, file_path, model_name, evaluator, LIMIT, max_workers): file_path
-            for file_path in files
+            for file_path in files_to_process
         }
         
         # Wait for all file processing to complete
@@ -215,8 +188,9 @@ def main():
 
     evaluator = TwoLayerEvaluator(judge_models=JUDGE_MODELS)
 
-    # Get all JSON files except data_confict.json
-    files = sorted([f for f in CASES_DIR.glob("*.json") if f.name != "data_confict.json"])
+    # Get all JSON files except data_confict.json and labels_*.json
+    files = sorted([f for f in CASES_DIR.glob("*.json") 
+                   if f.name != "data_confict.json" and not f.name.startswith("labels_")])
     if not files: 
         raise Exception(f"No JSON files found in {CASES_DIR}")
         
