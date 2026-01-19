@@ -233,32 +233,52 @@ if __name__ == "__main__":
     }
 
     print("=" * 80)
-    print("PROMPT EXAMPLES FOR EACH SCENARIO TYPE")
+    print("SELECT A SCENARIO TO VIEW PROMPT EXAMPLE")
     print("=" * 80)
+    print("\nAvailable scenarios:")
+    for i, scenario in enumerate(scenario_files.keys(), 1):
+        print(f"  {i}. {scenario}")
 
-    for scenario, filename in scenario_files.items():
-        file_path = base_dir / filename
-        if not file_path.exists():
-            print(f"\n⚠️  File not found: {filename}")
-            continue
+    choice = input("\nEnter scenario name or number (e.g., 'RC' or '1'): ").strip().upper()
+    
+    # Convert number to scenario name if needed
+    if choice.isdigit():
+        scenario_list = list(scenario_files.keys())
+        if 1 <= int(choice) <= len(scenario_list):
+            scenario = scenario_list[int(choice) - 1]
+        else:
+            print("Invalid choice")
+            exit(1)
+    else:
+        scenario = choice
+    
+    if scenario not in scenario_files:
+        print(f"Scenario '{scenario}' not found")
+        exit(1)
 
-        cases = list(parser.iter_file_cases(file_path))
-        if not cases:
-            print(f"\n⚠️  No cases found in {filename}")
-            continue
+    filename = scenario_files[scenario]
+    file_path = base_dir / filename
 
-        case = cases[0]  # Use first case as example
-        prompt = build_attack_prompt(case)
+    if not file_path.exists():
+        print(f"File not found: {filename}")
+        exit(1)
 
-        print(f"\n\n{'=' * 80}")
-        print(f"SCENARIO: {scenario}")
-        print(f"FILE: {filename}")
-        print(f"CASE ID: {case.id}")
-        print(f"QUERY: {case.query[:100]}..." if len(case.query) > 100 else f"QUERY: {case.query}")
-        print(f"{'=' * 80}")
-        print(prompt)
+    cases = list(parser.iter_file_cases(file_path))
+    if not cases:
+        print(f"No cases found in {filename}")
+        exit(1)
 
-    print(f"\n\n{'=' * 80}")
-    print("END OF PROMPT EXAMPLES")
-    print("=" * 80)
+    case = cases[0]  # Use first case as example
+    prompt = build_attack_prompt(case)
+
+    print(f"\n{'=' * 80}")
+    print(f"SCENARIO: {scenario}")
+    print(f"FILE: {filename}")
+    print(f"CASE ID: {case.id}")
+    print(f"QUERY: {case.query}")
+    print(f"{'=' * 80}")
+    print("\n[START OF PROMPT - This is what the LLM receives]\n")
+    print(prompt)
+    print(f"\n[END OF PROMPT]\n")
+
 
