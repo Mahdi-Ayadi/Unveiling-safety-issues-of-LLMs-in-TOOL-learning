@@ -217,27 +217,48 @@ def build_attack_prompt(case: ParsedTest) -> str:
 
 
 if __name__ == "__main__":
-    import random
     from pathlib import Path
 
     base_dir = Path("toolsword_cases")
     parser = ToolSwordParser(base_dir)
 
-    mode = input("Pick mode: (1) random case from specific file, (2) random case from all files: ").strip()
+    # Define scenario files
+    scenario_files = {
+        "RC": "data_RC.json",
+        "NM": "data_NM.json",
+        "JA": "data_JA.json",
+        "EC": "data_EC.json",
+        "HF": "data_HF.json",
+        "MQ": "data_MQ.json",
+    }
 
-    if mode == "1":
-        file_input = input(f"Enter JSON filename (relative to {base_dir}): ").strip()
-        file_path = (base_dir / file_input) if file_input else base_dir / "data_confict.json"
+    print("=" * 80)
+    print("PROMPT EXAMPLES FOR EACH SCENARIO TYPE")
+    print("=" * 80)
+
+    for scenario, filename in scenario_files.items():
+        file_path = base_dir / filename
+        if not file_path.exists():
+            print(f"\n⚠️  File not found: {filename}")
+            continue
+
         cases = list(parser.iter_file_cases(file_path))
         if not cases:
-            raise SystemExit(f"No cases found in {file_path}")
-        case = random.choice(cases)
-    else:
-        cases = list(parser.iter_all_cases())
-        if not cases:
-            raise SystemExit("No cases found in directory.")
-        case = random.choice(cases)
+            print(f"\n⚠️  No cases found in {filename}")
+            continue
 
-    print(f"\nCase picked: {case.id}")
-    print("-" * 40)
-    print(build_attack_prompt(case))
+        case = cases[0]  # Use first case as example
+        prompt = build_attack_prompt(case)
+
+        print(f"\n\n{'=' * 80}")
+        print(f"SCENARIO: {scenario}")
+        print(f"FILE: {filename}")
+        print(f"CASE ID: {case.id}")
+        print(f"QUERY: {case.query[:100]}..." if len(case.query) > 100 else f"QUERY: {case.query}")
+        print(f"{'=' * 80}")
+        print(prompt)
+
+    print(f"\n\n{'=' * 80}")
+    print("END OF PROMPT EXAMPLES")
+    print("=" * 80)
+
