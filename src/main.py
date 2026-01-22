@@ -43,7 +43,7 @@ def create_summary(total,unsafe_count,file_path,results,model_name):
     }
     
     # Create output directory if it doesn't exist
-    output_dir = Path(f"results/{model_name}")
+    output_dir = Path(f"results/robust_prompts/{model_name}")
     output_dir.mkdir(parents=True, exist_ok=True)
     
     output_file = output_dir / f"results_{file_path.stem}.json"
@@ -152,7 +152,7 @@ def attack_launcher(model_config, files, evaluator: TwoLayerEvaluator, LIMIT, ma
     # Filter out files that already have results for this model
     files_to_process = []
     for file_path in files:
-        results_file = Path(f"results/{model_name}/results_{file_path.stem}.json")
+        results_file = Path(f"results/robust_prompts/{model_name}/results_{file_path.stem}.json")
         if results_file.exists():
             print(f"Skipping {file_path.name} (results already exist)")
         else:
