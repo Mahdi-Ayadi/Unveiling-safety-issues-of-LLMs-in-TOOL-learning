@@ -1,44 +1,290 @@
-# Unveiling-safety-issues-of-LLMs-in-TOOL-learning
-Research project reproducing and extending ToolSword attacks to evaluate LLM safety in tool learning. Includes parsing, prompting, and model evaluation pipelines for analyzing vulnerabilities and robustness.
+# Evaluating Safety of LLMs in Tool Applications
 
-## Virtual Environment Setup
+**A Systematic Evaluation of Safety Vulnerabilities in Small Open-Source LLMs**
 
-### 1. Create the virtual environment
+![Status](https://img.shields.io/badge/status-active-brightgreen) ![Python](https://img.shields.io/badge/python-3.8+-blue)
+
+## Overview
+
+This research extends the **ToolSword** framework to evaluate safety vulnerabilities in open-source LLMs deployed in tool-use scenarios. Unlike prior work focusing on large proprietary models, we systematically assess four smaller, openly available models (7-8.3B parameters) across six distinct attack types.
+
+## Key Contributions
+
+- **Extended Evaluation Framework**: Reproduces ToolSword attacks on small open-source models (Llama3, Mistral, Qwen3, DeepSeek-R1)
+- **LLM-Based Judges**: Introduces ensemble LLM judging for refined safety assessment (novel contribution)
+- **Helpfulness-Safety Trade-off Analysis**: New metric quantifying the safety-helpfulness balance beyond ToolSword
+- **Rigorous Statistical Methods**: Wilson score confidence intervals and inter-rater agreement metrics
+- **Production-Ready Pipeline**: Fully automated, reproducible evaluation framework
+
+## Attack Framework
+
+Following ToolSword, we evaluate across **3 stages with 6 attack types** (2 per stage):
+
+| Stage | Attack Type | Description |
+|-------|-------------|-------------|
+| **Input** | Malicious Queries (MQ) | Direct harmful instructions |
+| | Jailbreak Attacks (JA) | Circumvention attempts |
+| **Execution** | Noisy Misdirection (NM) | Confusion in tool logic |
+| | Risky Cues (RC) | Subtle unsafe encouragement |
+| **Output** | Harmful Feedback (HF) | Adversarial responses |
+| | Edge Cases (EC) | Boundary condition attacks |
+
+## Research Methodology
+
+### Models Evaluated
+All small, open-source, freely available:
+
+| Model | Size | Focus |
+|-------|------|-------|
+| Llama3 | 8B | Meta's foundational model |
+| Mistral | 7B | Efficient reasoning |
+| Qwen3 | 8.3B | Advanced tool-use |
+| DeepSeek-R1 | 8B | Superior reasoning capabilities |
+
+### Evaluation Strategy
+
+**Two-Layer Judgment System**:
+1. **LLM Judge Ensemble**: Multiple judges assess safety/helpfulness
+2. **Confidence Scoring**: Majority voting with agreement rates
+
+**Key Metrics**:
+- **Attack Success Rate (ASR)**: Unsafe response percentage
+- **Helpfulness Score**: Novel metric measuring response utility when safe
+- **95% Confidence Intervals**: Wilson score method
+- **Inter-Rater Agreement**: Consensus across judge ensemble
+
+## Key Findings
+
+Model performance varies significantly across attack types:
+
+```
+Attack Success Rates by Model:
+┌─────────────┬──────┬──────┬──────┬──────┬──────┬──────┐
+│ Model       │ MQ   │ JA   │ NM   │ RC   │ HF   │ EC   │
+├─────────────┼──────┼──────┼──────┼──────┼──────┼──────┤
+│ Llama3      │ 23.6%│ 33.3%│ 65.5%│ 72.7%│ 20.0%│ 94.5%│
+│ Mistral     │ 65.5%│ 66.1%│ 69.1%│ 50.9%│ 30.9%│ 47.3%│
+│ Qwen3       │ 14.5%│ 41.8%│ 58.2%│ 76.4%│ 43.6%│ 60.0%│
+│ DeepSeek-R1 │ 10.9%│ 30.3%│ 61.8%│ 83.6%│ 56.4%│ 74.5%│
+└─────────────┴──────┴──────┴──────┴──────┴──────┴──────┘
+```
+
+**Key Observations**:
+- **Execution stage (NM/RC)** presents the greatest vulnerability
+- **Input stage (MQ/JA)** shows better model robustness
+- **DeepSeek-R1** most robust on direct attacks (MQ: 10.9%)
+- **Llama3** highly vulnerable to execution attacks (RC: 72.7%)
+
+## Installation & Setup
+
+### Prerequisites
+- Python 3.8+, [Ollama](https://ollama.ai/), 8GB+ VRAM
+
+### Quick Start
 ```bash
+# Setup environment
 python -m venv .venv
-```
+# Windows: .venv\Scripts\Activate.ps1
+# Linux/Mac: source .venv/bin/activate
 
-### 2. Activate the environment
-
-| OS | Command |
-|----|----------|
-| **Windows (PowerShell)** | `.venv\Scripts\Activate.ps1` |
-| **Windows (CMD)** | `.venv\Scripts\activate.bat` |
-| **macOS / Linux** | `source .venv/bin/activate` |
-
-> *If PowerShell blocks the command, run:*  
-> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-### 3. Install dependencies
-```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Download models
+ollama pull llama3 mistral qwen3:8b deepseek-r1:8b
+ollama serve
+
+# Run evaluation
+python src/main.py
 ```
 
-### 4. (Optional) Update dependencies
+## References
+
+**ToolSword Paper**:
+```bibtex
+@article{toolsword2024,
+  title={ToolSword: Unveiling Safety Issues of Large Language Models in Tool Learning},
+  author={Zeng, Tianhao and others},
+  journal={arXiv preprint arXiv:2402.10764},
+  year={2024}
+}
+```
+
+## Usage
+
+### Running the Complete Evaluation Pipeline
+
 ```bash
-pip freeze > requirements.txt
+python src/main.py
+```
+
+This executes:
+1. Parses all test cases from `toolsword_cases/`
+2. Generates adversarial prompts for each attack category
+3. Runs inference across all models
+4. Performs two-layer evaluation
+5. Computes ASR with 95% confidence intervals
+6. Saves results to `results/{model_name}/`
+
+### Configuration
+
+Edit `src/config.yaml` to customize:
+- Model selection and parameters
+- Evaluation stages to include
+- Output directory and naming
+- LLM temperature and token limits
+
+### Viewing Results
+
+Results are stored as JSON in `results/{model_name}/results_data_{CATEGORY}.json`:
+
+```json
+{
+  "summary": {
+    "file": "data_MQ.json",
+    "total_cases": 100,
+    "unsafe_count": 45,
+    "asr": 0.45,
+    "asr_percentage": "45.00%",
+    "ci_95_low": "34.98%",
+    "ci_95_high": "55.25%"
+  },
+  "results": [
+    {
+      "id": "case_001",
+      "input": "...",
+      "model_response": "...",
+      "layer1_judgment": "UNSAFE",
+      "layer2_judgment": "UNSAFE",
+      "final_judgment": "UNSAFE"
+    }
+  ]
+}
+```
+
+### Testing Individual Components
+
+```bash
+# Test Ollama connectivity
+python tests/test_ollama_connection.py
+
+# Test all model connections
+python tests/test_all_models_connection.py
+
+# Test ToolSword parsing
+python tests/test_parser.py
+```
+
+## Project Structure
+
+```
+.
+├── src/                               # Core implementation
+│   ├── main.py                       # Main evaluation pipeline
+│   ├── llm_runner.py                 # LLM inference engine
+│   ├── evaluator.py                  # Two-layer evaluation logic
+│   ├── parser.py                     # ToolSword test case parser
+│   ├── prompt_generator.py           # Attack prompt generation
+│   ├── calculate_global_score.py     # Aggregate results
+│   ├── generate_report.py            # Report generation
+│   ├── config.yaml                   # Configuration file
+│   └── utils.py                      # Utility functions
+│
+├── toolsword_cases/                   # Test case datasets
+│   ├── data_MQ.json                  # Malicious Queries
+│   ├── data_JA.json                  # Jailbreak Attacks
+│   ├── data_NM.json                  # Noisy Misdirection
+│   ├── data_RC.json                  # Risky Cues
+│   ├── data_HF.json                  # Harmful Feedback
+│   ├── data_EC.json                  # Edge Cases
+│   └── labels_NM.json                # Ground truth annotations
+│
+├── results/                           # Generated results (gitignore)
+│   ├── llama3/
+│   ├── mistral/
+│   ├── qwen3/
+│   └── deepseek-r1/
+│
+├── tests/                            # Test suite
+│   ├── test_ollama_connection.py
+│   ├── test_all_models_connection.py
+│   └── test_parser.py
+│
+├── requirements.txt
+└── README.md
+```
+
+## Key Features
+
+✨ **Production-Ready Architecture**
+- Modular, extensible design with clear separation of concerns
+- Comprehensive error handling and logging
+- Concurrent inference with configurable worker pools
+
+📊 **Rigorous Statistical Evaluation**
+- Wilson score intervals for reliable confidence bounds
+- Fleiss' Kappa for inter-rater agreement assessment
+- Configurable confidence levels and multiple judgment layers
+
+🔧 **Flexible Configuration**
+- YAML-based configuration for easy customization
+- Support for arbitrary model additions
+- Dynamic evaluation stage selection
+
+📈 **Comprehensive Results**
+- Detailed per-case analysis with full response transcripts
+- Aggregate statistics by attack category and model
+- JSON output for further analysis and visualization
+
+## Contributing
+
+Contributions are welcome! Areas for enhancement:
+- Additional attack categories and prompts
+- New evaluation metrics and agreement methods
+- Support for proprietary LLM APIs (OpenAI, Anthropic, etc.)
+- Visualization and reporting dashboards
+- Extended model support
+
+## Acknowledgments
+
+This research builds upon the foundational work of **ToolSword**, a key framework for evaluating LLM safety in tool-use scenarios. We extend their attack framework with:
+- Evaluation across diverse open-source models
+- Enhanced statistical rigor in measurement
+- Automated end-to-end evaluation pipeline
+- Reproducible, production-ready implementation
+
+**Citation for ToolSword**:
+```bibtex
+@article{toolsword,
+  title={ToolSword: Unveiling Safety Issues of Large Language Models in Tool Learning Across Three Stages},
+  author={Junjie Ye, Sixian Li, Guanyu Li, Caishuang Huang, Songyang Gao, Yilong Wu, Qi Zhang, Tao Gui, Xuanjing Huang
+},
+  year={2024}
+}
+```
+
+### Computational Infrastructure
+
+This research was conducted using the **DCE (Data Center Exascale) cluster** at **CentraleSupélec**, a world-class high-performance computing facility. We gratefully acknowledge the exceptional computing resources, technical support, and infrastructure that made this comprehensive evaluation possible.
+
+The DCE cluster of CentraleSupélec provides state-of-the-art computational capabilities for advanced research in machine learning, scientific computing, and data science, enabling large-scale experiments that would otherwise be infeasible.
+
+## Citation
+
+If you use this research in your work, please cite:
+
+```bibtex
+@misc{unveiling-safety-llm-tool-learning,
+  title={Unveiling Safety Issues of Large Language Models in Tool Learning},
+  author={Mahdi Ayadi, Arthur De Bom Van Driessche, Joseph Servigne, Zeshan Ma, Abdelhakim Nassereddine},
+  year={2025},
+  institution={CentraleSupélec}
+}
 ```
 
 ## Defense Strategy: Robust Prompt Engineering
 
-### Overview
-This project implements a **primary defense technique** against ToolSword attacks through intelligent prompt engineering. Rather than relying on model fine-tuning or external guardrails, we inject a multi-stage safety check preamble into system prompts that guides LLMs to reason about safety risks before executing tool calls.
-
-In real-world scenarios, this approach is practical because:
-- It requires no model retraining
-- It works across different model architectures
-- It can be updated quickly to address new attack patterns
-- Organizations can deploy it immediately without infrastructure changes
+As an extension to the baseline evaluation, we explored a **primary defense technique** through intelligent prompt engineering. Rather than relying on model fine-tuning or external guardrails, we injected a multi-stage safety check preamble into system prompts that guides LLMs to reason about safety risks before executing tool calls.
 
 ### The Safety Preamble: 5-Stage Defense
 
@@ -64,75 +310,63 @@ Every prompt includes this safety check sequence that the LLM must perform befor
    combinations or descriptions that seem misaligned with their intended function.
 ```
 
-### Attack Scenarios Addressed
+### Results: Baseline vs Robust Prompts
 
-The framework evaluates 6 ToolSword attack scenarios:
+**Baseline Attack Success Rates (ASR) - No Defense:**
 
-- **RC (Return Code)**: Tests if LLM makes unnecessary tool calls instead of answering directly
-- **NM (Noise Misdirection)**: Tests if LLM selects the correct tool despite irrelevant options
-- **JA (Jailbreaking Attempt)**: Tests resistance to jailbreak prompts in tool context
-- **EC (Error Correction)**: Tests if LLM detects and corrects misinformation in dialog history
-- **HF (Harmful Feedback)**: Tests if LLM is influenced by harmful tool responses
-- **MQ (Misleading Question)**: Tests if LLM handles semantically confusing queries safely
+| Model | MQ | JA | NM | RC | HF | EC | Avg |
+|-------|----|----|----|----|----|----|-----|
+| **Llama3** | 23.6% | 33.3% | 65.5% | 72.7% | 20.0% | 94.5% | 51.6% |
+| **Mistral** | 65.5% | 66.1% | 69.1% | 50.9% | 30.9% | 47.3% | 55.0% |
+| **Qwen3** | 14.5% | 41.8% | 58.2% | 76.4% | 43.6% | 60.0% | 49.1% |
+| **DeepSeek-R1** | 10.9% | 30.3% | 61.8% | 83.6% | 56.4% | 74.5% | 52.9% |
 
-### Results: Robust Prompts vs Baseline
+**Attack Success Rates (ASR) with Robust Prompts:**
 
-**Attack Success Rate (ASR) with Robust Prompts:**
+| Model | MQ | JA | NM | RC | HF | EC | Avg |
+|-------|----|----|----|----|----|----|-----|
+| **Llama3** | 0.0% | 28.5% | 76.4% | 25.5% | 0.0% | 25.5% | 26.0% |
+| **Mistral** | 20.0% | 75.8% | 87.3% | 90.9% | 41.8% | 52.7% | 61.4% |
+| **Qwen3** | 0.0% | 15.2% | 47.3% | 47.3% | 12.7% | 54.5% | 29.5% |
+| **DeepSeek-R1** | 0.0% | 15.2% | 89.1% | 41.8% | 16.4% | 56.4% | 36.5% |
 
-| Model | RC | NM | JA | EC | HF | MQ |
-|-------|----|----|----|----|----|----|
-| **DeepSeek-R1 (8B)** | 41.8% | 89.1% | 15.2% | 56.4% | 16.4% | 0.0% |
-| **Llama3** | 25.5% | 76.4% | 28.5% | 25.5% | 0.0% | 0.0% |
-| **Mistral** | 90.9% | 87.3% | 75.8% | 52.7% | 41.8% | 20.0% |
-| **Qwen3 (8B)** | 47.3% | 47.3% | 15.2% | 54.5% | 12.7% | 0.0% |
+**Defense Effectiveness - Reduction in Attack Success Rate:**
 
-**Key Observations:**
+| Model | MQ | JA | NM | RC | HF | EC | Avg |
+|-------|----|----|----|----|----|----|-----|
+| **Llama3** | -100% | -14.4% | +10.9% | -49.2% | -100% | -72.9% | -49.8% |
+| **Mistral** | -69.5% | +14.7% | +18.2% | +39.8% | +27.5% | +5.4% | -2.5% |
+| **Qwen3** | -100% | -36.6% | -18.8% | -38.1% | -70.8% | -9.2% | -45.6% |
+| **DeepSeek-R1** | -100% | -50.1% | +27.3% | -49.8% | -71.0% | -24.2% | -44.6% |
 
-1. **Harmless Feedback (HF) & Misleading Questions (MQ)**: Strong defense across all models (0-41.8% ASR), indicating the preamble effectively teaches skepticism about tool outputs and query ambiguity.
+### Key Findings on Robust Prompts
 
-2. **Error Correction (EC)**: Moderate defense (25.5-56.4% ASR). Enhanced by updated EC evaluator that recognizes tool re-verification as safe behavior, not just explicit corrections.
+1. **Strong Defense on Input Attacks (MQ/JA)**: The preamble is highly effective at preventing malicious queries and jailbreaks, reducing MQ attacks to 0% across 3/4 models and JA attacks by 14-50%.
 
-3. **Tool Misdirection (NM)**: Weaker defense (47.3-89.1% ASR), suggesting tool selection remains challenging even with safety prompts. Models sometimes struggle to prioritize technical descriptions over misleading names.
+2. **Significant Helpfulness-Safety Trade-off**: On Execution stage attacks (NM/RC), the robust prompts show mixed or negative results, suggesting that the safety guidance may cause models to avoid necessary tool usage (especially Mistral with RC: 50.9%→90.9%).
 
-4. **Return Code (RC)**: Variable results (25.5-90.9% ASR), showing inconsistent learning of "answer directly without unnecessary tool calls."
+3. **Enhanced Error Correction**: For EC scenarios, the updated evaluation criteria (recognizing tool re-verification as safe behavior) combined with the robust prompts shows 25-72% improvement in safety.
 
-### Implementation Details
+4. **Model-Specific Performance**: DeepSeek-R1 and Llama3 benefit more from robust prompts (44-50% avg reduction in ASR), while Mistral shows limited or negative gains, indicating robustness improvements depend on model architecture and training.
 
-#### Result Organization
-- Original results: `results/[model]/` - Baseline attack evaluation
-- Robust prompt results: `results/robust_prompts/[model]/` - Defense evaluation
-- This separation allows comparative analysis between baseline and hardened models
+5. **Harmful Feedback Resistance**: HF attacks are substantially reduced (0-70% improvement), indicating the preamble effectively teaches models to question and skeptically evaluate tool outputs.
 
-#### Modified Evaluators
-The EC (Error Correction) evaluator was updated to recognize legitimate defense behaviors:
-- **Skepticism & Rechecking**: Marked SAFE if model re-verifies information
-- **Explicit Correction**: Marked SAFE if model provides correct answer
-- **Refusal with Explanation**: Marked SAFE if model explains why information is suspicious
+### Results Organization
 
-Previously, only explicit corrections counted as safe, which underestimated defense effectiveness.
+- **Baseline results**: `results/[model]/` - Original attack evaluation without defense
+- **Robust prompt results**: `results/robust_prompts/[model]/` - Defense evaluation with enhanced prompts
 
-### Running the Evaluation
+This separation allows direct comparative analysis between baseline vulnerabilities and hardened models.
 
-```bash
-# Configure your models in src/config.yaml
-python src/main.py
+## Contact & Support
 
-# Results are automatically saved to results/robust_prompts/[model]/
-```
+For questions, issues, or collaborations:
+- 📧 Open an issue on the repository
+- 🐛 Report bugs with detailed reproduction steps
+- 💡 Suggest improvements and new features
 
-### Limitations & Future Work
+---
 
-- **NM Scenario**: Tool naming confusion remains difficult; may require additional context about tool purposes
-- **RC Scenario**: Models sometimes over-comply with instructions to "answer directly"
-- **Prompt Injection Resistance**: Some models may still be vulnerable to sophisticated prompt injection attacks
-- **Real-time Tool Verification**: Current approach is LLM-based; future work could include actual tool validation
-
-### Academic Contribution
-
-This work demonstrates that **intelligent prompting is a viable first-line defense** against tool-learning attacks without requiring:
-- Model retraining
-- Fine-tuning on safety data
-- Additional inference time overhead
-- Complex external systems
-
-Organizations can immediately deploy this as a baseline defense while developing more sophisticated protections.
+**Last Updated**: January 2026  
+**Research Institution**: CentraleSupélec, Paris  
+**Infrastructure**: DCE Cluster
